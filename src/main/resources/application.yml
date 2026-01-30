@@ -1,15 +1,28 @@
 
 spring:
+  application:
+    name: departmental-store
   datasource:
-    url: jdbc:h2:file:./data/storedb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${STORE_DB_URL:jdbc:postgresql://localhost:5432/departmental_store}
+    username: ${STORE_DB_USERNAME:store_user}
+    password: ${STORE_DB_PASSWORD:store_password}
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    properties:
+      hibernate:
+        format_sql: true
+
+store:
+  security:
+    jwt:
+      issuer: ${STORE_JWT_ISSUER:departmental-store-auth}
+      secret: ${STORE_JWT_SECRET:local-dev-secret-local-dev-secret}
+  services:
+    product:
+      base-url: ${PRODUCT_SERVICE_URL:http://localhost:${server.port:8080}}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
