@@ -11,7 +11,9 @@ public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long orderId;
+    private Long internalOrderId;
+
+    private String orderId;
 
     private Long productId;
     private Long customerId;
@@ -26,13 +28,20 @@ public class Order {
 
     // getters and setters
 
-    public Long getOrderId() {
+
+    public String getOrderId() {
         return orderId;
     }
 
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
+
+    public void setInternalOrderId(Long internalOrderId) {
+        this.internalOrderId = internalOrderId;
     }
+
+    public Long getInternalOrderId() {
+        return internalOrderId;
+    }
+
 
     public Long getProductId() {
         return productId;

@@ -1,29 +1,15 @@
+package com.store.departmentalstore.dto;
 
-package com.store.departmentalstore.entity;
-
-import jakarta.persistence.*;
 import java.time.LocalDate;
 
-@Entity
-public class ProductInventory {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long productId;
+public class ProductRequestDto {
+
     private String productName;
     private String productDesc;
     private double price;
     private LocalDate expiry;
     private int count;
     private boolean availability;
-
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public void setProductId(Long productId) {
-        this.productId = productId;
-    }
 
     public String getProductName() {
         return productName;
@@ -41,20 +27,20 @@ public class ProductInventory {
         this.productDesc = productDesc;
     }
 
-    public double getPrice() {
-        return price;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
     public LocalDate getExpiry() {
         return expiry;
     }
 
     public void setExpiry(LocalDate expiry) {
         this.expiry = expiry;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
     }
 
     public int getCount() {
@@ -71,5 +57,8 @@ public class ProductInventory {
 
     public void setAvailability(boolean availability) {
         this.availability = availability;
+    }
+
+    public static class ProductResponseDto {
     }
 }

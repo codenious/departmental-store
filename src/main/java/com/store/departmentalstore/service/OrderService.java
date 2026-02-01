@@ -15,10 +15,10 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final ProductInventoryRepository productRepository;
+    private final ProductRepository productRepository;
 
     public OrderService(OrderRepository orderRepository,
-                        ProductInventoryRepository productRepository) {
+                        ProductRepository productRepository) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
     }
@@ -29,7 +29,7 @@ public class OrderService {
             throw new IllegalArgumentException("Quantity must be greater than zero");
         }
 
-        ProductInventory product = productRepository.findById(productId)
+        Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         Order order = new Order();
@@ -69,7 +69,7 @@ public class OrderService {
             throw new IllegalArgumentException("Added stock must be more than 0");
         }
 
-        ProductInventory product = productRepository.findById(productId)
+        Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         product.setCount(product.getCount() + addedStock);

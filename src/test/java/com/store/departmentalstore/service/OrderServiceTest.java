@@ -2,7 +2,7 @@ package com.store.departmentalstore.service;
 
 
 import com.store.departmentalstore.entity.Order;
-import com.store.departmentalstore.entity.ProductInventory;
+import com.store.departmentalstore.entity.Product;
 import com.store.departmentalstore.enums.OrderStatus;
 import com.store.departmentalstore.repository.OrderRepository;
 import com.store.departmentalstore.repository.ProductInventoryRepository;
@@ -36,7 +36,7 @@ class OrderServiceTest {
     @Test
     void shouldCreateBackorderWhenInventoryIsZero() {
 
-        ProductInventory product = new ProductInventory();
+        Product product = new Product();
         product.setProductId(1L);
         product.setCount(0);
         product.setAvailability(true);
@@ -57,7 +57,7 @@ class OrderServiceTest {
     @Test
     void shouldPartiallyFulfillWhenStockIsLessThanOrderQuantity() {
 
-        ProductInventory product = new ProductInventory();
+        Product product = new Product();
         product.setProductId(1L);
         product.setCount(3);
         product.setAvailability(true);
@@ -78,7 +78,7 @@ class OrderServiceTest {
     @Test
     void shouldFulfillBackordersInFifoOrder() {
 
-        ProductInventory product = new ProductInventory();
+        Product product = new Product();
         product.setProductId(1L);
         product.setCount(0);
         product.setAvailability(true);
