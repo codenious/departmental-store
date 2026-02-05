@@ -11,10 +11,12 @@ import com.store.departmentalstore.mapper.ProductMapper;
 import com.store.departmentalstore.repository.OrderRepository;
 import com.store.departmentalstore.repository.ProductRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ProductService {
@@ -40,7 +42,10 @@ public class ProductService {
     public ProductResponseDto addProduct(ProductRequestDto request){
 
         validateProduct(request);
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String date = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
         Product newProduct = ProductMapper.toEntity(request);
+        newProduct.setProductCode("PRODUCT-" + date + "-" + suffix);
         Product savedProduct = pr.save(newProduct);
         return ProductMapper.responseDto(savedProduct);
 
@@ -60,7 +65,11 @@ public class ProductService {
         pr.deleteById(productId);
     }
 
+    @Transactional
     public void updateProduct(Long productId, ProductUpdateRequestDto request) {
+
+        //We don't save when nothing is there to update in Request
+        Boolean update = Boolean.FALSE;
 
         Product product = pr.findById(productId)
                 .orElseThrow(() ->
@@ -70,30 +79,42 @@ public class ProductService {
         if (request.getProductName() != null) {
             validateProductName(request.getProductName());
             product.setProductName(request.getProductName());
+            update = Boolean.TRUE;
         }
 
         if (request.getProductDesc() != null) {
             validateProductDesc(request.getProductDesc());
             product.setProductDesc(request.getProductDesc());
+            update = Boolean.TRUE;
         }
 
         if (request.getPrice() != null) {
             validatePrice(request.getPrice());
             product.setPrice(request.getPrice());
+            update = Boolean.TRUE;
         }
 
         if (request.getExpiry() != null) {
             validateExpiry(request.getExpiry());
             product.setExpiry(request.getExpiry());
+            update = Boolean.TRUE;
         }
 
         if (request.getCount() != null) {
             validateCount(request.getCount());
             product.setCount(request.getCount());
+            update = Boolean.TRUE;
         }
 
         if (request.getAvailability() != null) {
             product.setAvailability(request.getAvailability());
+            update = Boolean.TRUE;
+        }
+
+        if(!update) {
+            throw new InvalidProductException("No New field provided for update");
+        } else{
+            pr.save(product);
         }
     }
 

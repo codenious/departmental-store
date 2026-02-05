@@ -1,107 +1,113 @@
 
 package com.store.departmentalstore.service;
-
-import com.store.departmentalstore.entity.*;
+import com.store.departmentalstore.exceptions.InvalidProductException;
+import org.springframework.transaction.annotation.Transactional;
+import com.store.departmentalstore.dto.CreateOrderItemRequestDto;
+import com.store.departmentalstore.dto.CreateOrderRequestDto;
+import com.store.departmentalstore.dto.OrderResponseDto;
+import com.store.departmentalstore.entity.Order;
+import com.store.departmentalstore.entity.OrderItem;
+import com.store.departmentalstore.entity.Product;
 import com.store.departmentalstore.enums.OrderStatus;
+import com.store.departmentalstore.exceptions.ProductNotFoundException;
 import com.store.departmentalstore.exceptions.ResourceNotFoundException;
-import com.store.departmentalstore.repository.*;
-import jakarta.transaction.Transactional;
+import com.store.departmentalstore.mapper.OrderMapper;
+import com.store.departmentalstore.repository.OrderRepository;
+import com.store.departmentalstore.repository.ProductRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
-import java.util.List;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
-@Transactional
 public class OrderService {
 
-    private final OrderRepository orderRepository;
-    private final ProductRepository productRepository;
 
-    public OrderService(OrderRepository orderRepository,
-                        ProductRepository productRepository) {
-        this.orderRepository = orderRepository;
-        this.productRepository = productRepository;
+    private final ProductRepository pr;
+    private final OrderRepository or;
+
+    public OrderService(ProductRepository pr, OrderRepository or){
+        this.pr = pr;
+        this.or = or;
     }
-
-    public Order placeOrder(Long productId, Long customerId, int quantity) {
-
-        if (quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be greater than zero");
-        }
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-
-        Order order = new Order();
-        order.setProductId(productId);
-        order.setCustomerId(customerId);
-        order.setQuantity(quantity);
-        order.setOrderTimestamp(LocalDateTime.now());
-
-        if (!product.isAvailability() || product.getCount() == 0) {
-            // Full backorder
-            order.setFulfilledQuantity(0);
-            order.setStatus(OrderStatus.BACKORDERED);
-        } else if (product.getCount() >= quantity) {
-            // fulfillment of order
-            product.setCount(product.getCount() - quantity);
-            productRepository.save(product);
-
-            order.setFulfilledQuantity(quantity);
-            order.setStatus(OrderStatus.COMPLETED);
-        } else {
-            // Partial fulfillment
-            int fulfilled = product.getCount();
-            product.setCount(0);
-            productRepository.save(product);
-
-            order.setFulfilledQuantity(fulfilled);
-            order.setStatus(OrderStatus.PARTIALLY_FULFILLED);
-        }
-
-        return orderRepository.save(order);
+    private String generateOrderId() {
+        String date = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        return "ORD-" + date + "-" + suffix;
     }
 
     @Transactional
-    public void replenishInventory(Long productId, int addedStock) {
+    public OrderResponseDto createOrder(CreateOrderRequestDto request) {
 
-        if (addedStock <= 0) {
-            throw new IllegalArgumentException("Added stock must be more than 0");
+        Set<Long> seen = new HashSet<>();
+        for (CreateOrderItemRequestDto item : request.getItems()) {
+            if (!seen.add(item.getProductId())) {
+                throw new InvalidProductException("Duplicate productId in items: " + item.getProductId());
+            }
         }
 
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        product.setCount(product.getCount() + addedStock);
-        productRepository.save(product);
+        Order order = new Order();
+        order.setOrderId(generateOrderId());
+        order.setCustomerId(request.getCustomerId());
+        order.setStatus(OrderStatus.CREATED);
 
-        List<Order> backorders =
-                orderRepository.findByProductIdAndStatusOrderByOrderTimestampAsc(
-                        productId,
-                        OrderStatus.BACKORDERED
-                );
+        for (CreateOrderItemRequestDto itemReq : request.getItems()) {
+            Product product = pr.findById(itemReq.getProductId())
+                    .orElseThrow(() -> new ProductNotFoundException("Product not found: " + itemReq.getProductId()));
 
-        for (Order order : backorders) {
-            if (product.getCount() == 0) {
-                break;
-            }
+            OrderItem item = new OrderItem();
+            item.setProductId(product.getProductId());
 
-            int remaining = order.getQuantity() - order.getFulfilledQuantity();
-            int fulfillNow = Math.min(remaining, product.getCount());
+            // snapshot fields
+            item.setProductNameSnapshot(product.getProductName()); // adjust to your field name
+            item.setUnitPriceSnapshot(BigDecimal.valueOf(product.getPrice())); // if price is double in Product
+            item.setQuantity(itemReq.getQuantity());
 
-            order.setFulfilledQuantity(order.getFulfilledQuantity() + fulfillNow);
-            product.setCount(product.getCount() - fulfillNow);
-
-            if (order.getFulfilledQuantity() == order.getQuantity()) {
-                order.setStatus(OrderStatus.COMPLETED);
-            } else {
-                order.setStatus(OrderStatus.PARTIALLY_FULFILLED);
-            }
-
-            orderRepository.save(order);
+            order.addItem(item);
         }
 
-        productRepository.save(product);
+        Order saved = or.save(order);
+        return OrderMapper.toDto(saved);
+    }
+
+    @Transactional()
+    public OrderResponseDto getByOrderId(String orderId) {
+        Order order = or.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+        return OrderMapper.toDto(order);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderResponseDto> listOrders(Long customerId, int page, int size, String sortBy, String sortDir) {
+
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        int safePage = Math.max(page, 0);
+
+        Sort sort = buildSort(sortBy, sortDir);
+        Pageable pageable = PageRequest.of(safePage, safeSize, sort);
+
+        Page<Order> orders = or.findByCustomerId(customerId, pageable);
+        return orders.map(OrderMapper::toDto);
+    }
+
+    private Sort buildSort(String sortBy, String sortDir) {
+        // whitelist
+        Set<String> allowed = Set.of("createdAt", "updatedAt", "status");
+        String safeSortBy = allowed.contains(sortBy) ? sortBy : "createdAt";
+
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+
+        // stable pagination: add secondary sort on id
+        return Sort.by(direction, safeSortBy).and(Sort.by(Sort.Direction.DESC, "id"));
     }
 
 }

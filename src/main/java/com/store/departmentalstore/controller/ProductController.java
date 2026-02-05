@@ -36,13 +36,13 @@ public class ProductController {
 
     }
 
-    @DeleteMapping("/delete/{productId}")
+    @DeleteMapping("/delete/id/{productId}")
     public ResponseEntity<Void> deleteById(@PathVariable Long productId){
         productService.deleteByProductId(productId);
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-    @DeleteMapping("/delete/{productName}")
+    @DeleteMapping("/delete/name/{productName}")
     public ResponseEntity<Void> deleteByName(@PathVariable String productName){
         productService.deleteProductByName(productName);
         return ResponseEntity.status(HttpStatus.OK).build();

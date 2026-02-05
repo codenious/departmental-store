@@ -9,9 +9,13 @@ public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long productId;
+
+    @Column(name = "product_code", nullable = false, unique = true, updatable = false, length = 64)
+    private String productCode;
     private String productName;
     private String productDesc;
     private double price;
+
     private LocalDate expiry;
     private int count;
     private boolean availability;
@@ -23,6 +27,14 @@ public class Product {
 
     public void setProductId(Long productId) {
         this.productId = productId;
+    }
+
+    public String getProductCode() {
+        return productCode;
+    }
+
+    public void setProductCode(String productCode) {
+        this.productCode = productCode;
     }
 
     public String getProductName() {
